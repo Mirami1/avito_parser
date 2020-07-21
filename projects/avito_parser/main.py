@@ -5,23 +5,29 @@ import requests
 import urllib.parse
 import csv
 
-InnerBlock = namedtuple('Block', 'title,price,currency,date,url')
+InnerBlock = namedtuple('Block', 'title,engcapacity,price,currency,date,url')
 
 
 class Block(InnerBlock):
     def __str__(self):
-        return f'{self.title}\t{self.price} {self.currency}\t{self.date}\t{self.url}'
+        return f'{self.title}\t{self.engcapacity}\t{self.price} {self.currency}\t{self.date}\t{self.url}'
 
 
 class AvitoParser:
 
-    def __init__(self):
-
+    def __init__(self, proxy):
+        self.proxy = proxy
+        self.proxy_succeed = False
+        self.proxy_success = {}
         self.session = requests.Session()
         self.session.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36',
             'Accept-Language': 'ru',
         }
+
+    def check_html(self, file):
+        line = file.find("Доступ с вашего IP-адреса временно ограничен")
+        return line != 1
 
     def get_page(self, page: int = None):
         params = {
@@ -35,8 +41,29 @@ class AvitoParser:
             params['p'] = page
 
         url = 'https://www.avito.ru/ufa/avtomobili/levyy_rul-ASgCAQICAUDwChSsigE'
-        r = self.session.get(url, params=params)
-        return r.text
+        if len(self.proxy) != 0 and self.proxy_succeed == False:
+            for p in self.proxy:
+                try:
+                    print('ставлю прокси по %s' % p)
+                    self.proxy_success = {'http': '%s' % p, 'https': '%s' % p}
+                    r = self.session.get(
+                        url, params=params, proxies=self.proxy_success)
+                    if self.check_html(r.text):
+                        print("Прокси не работает. Retry")
+                        continue
+                    else:
+                        self.proxy_succeed = True
+                        return r.text
+                except Exception as e:
+                    print("proxy doesn't work. Retry"+str(e))
+                    continue
+        elif self.proxy_succeed == True:
+            r = self.session.get(url, params=params,
+                                 proxies=self.proxy_success)
+            return r.text
+        else:
+            r = self.session.get(url, params=params)
+            return r.text
 
     def get_pagination_limit(self):
         text = self.get_page()
@@ -65,6 +92,9 @@ class AvitoParser:
         title_block = item.select_one('h3.snippet-title span')
         title = title_block.string.strip()
 
+        # engine capacity block
+        cap = item.select_one('div.specific-params.specific-params_block')
+        engcapacity = cap.string.strip().split(', ')[1]
         # Block with name and currency
         price_block = item.select_one(
             'span.snippet-price').get_text('\n').strip()
@@ -88,6 +118,7 @@ class AvitoParser:
             price=price,
             currency=currency,
             date=date,
+            engcapacity=engcapacity,
         )
 
     def get_blocks(self, page=1):
@@ -153,13 +184,23 @@ class AvitoParser:
         print(f'Всего страниц: {limit}')
 
         for i in range(1, limit+1):
-            #self.get_blocks(page=i)
+            # self.get_blocks(page=i)
             self.get_blocks_to_csv(page=i)
 
 
+
 def main():
-    p = AvitoParser()
+    proxy = []
+    with open("proxy.txt", "r") as myfile:
+        try:
+            data = myfile.readlines()
+            for each in data:
+                proxy.append(each.replace('\n', '').replace('\r', ''))
+        except:
+            pass
+    p = AvitoParser(proxy=proxy)
     p.parse_all()
+    print('Работа закончена!')
 
 
 if __name__ == "__main__":
