@@ -4,18 +4,25 @@ import bs4
 import requests
 import urllib.parse
 import csv
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time 
 
-InnerBlock = namedtuple('Block', 'title,engcapacity,price,currency,date,url')
+InnerBlock = namedtuple('Block', 'title,engcapacity,transmission,power,price,currency,date,url')
 
 
 class Block(InnerBlock):
     def __str__(self):
-        return f'{self.title}\t{self.engcapacity}\t{self.price} {self.currency}\t{self.date}\t{self.url}'
+        return f'{self.title}\t{self.engcapacity}\t{self.transmission}\t{self.power}\t{self.price} {self.currency}\t{self.date}\t{self.url}'
 
 
 class AvitoParser:
 
-    def __init__(self, proxy):
+    def __init__(self, proxy=[]):
         self.proxy = proxy
         self.proxy_succeed = False
         self.proxy_success = {}
@@ -24,30 +31,82 @@ class AvitoParser:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36',
             'Accept-Language': 'ru',
         }
+        self.url=None
+    
+    def set_up(self, url):
+        driver = webdriver.Chrome(ChromeDriverManager().install())
+        driver.get(url)
+        btn_elem=driver.find_element_by_link_text('Авто').click()
+        driver.implicitly_wait(10)
+        btn_elem=driver.find_element_by_xpath("//a[@class='rubricator-list-item-link-12kOm' and @data-marker='category[1000014]/link']").click()
+        
+        
+        wait =  WebDriverWait(driver, 30)
+        elem = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@class='input-input-25uCh' and @placeholder='Цена от']")))
+        
+        time.sleep(5)
+        driver.find_element_by_xpath("//input[@class='input-input-25uCh' and @placeholder='Цена от']").send_keys('50000')
+        driver.find_element_by_xpath("//input[@class='input-input-25uCh' and @placeholder='до, руб.']").send_keys('500000')
+        elem=driver.find_element_by_xpath("//input[@class='suggest-input-3p8yi' and @placeholder='от 1960']").send_keys(' ')
+        elem=driver.find_element_by_xpath("//ul[@class='suggest-suggests-bMAdj']").find_elements_by_xpath(".//*")
+        for li in elem:
+            if(li.get_attribute('data-marker')=='suggest(15)'):
+                li.click()
+                break
+        elem=driver.find_element_by_xpath("//input[@class='suggest-input-3p8yi' and @placeholder='до 2020']").send_keys(' ')
+        elem=driver.find_element_by_xpath("//ul[@class='suggest-suggests-bMAdj']").find_elements_by_xpath(".//*")
+        for li in elem:
+            if(li.get_attribute('data-marker')=='suggest(1)'):
+                li.click()
+                break
+        elem=driver.find_element_by_xpath("//input[@class='suggest-input-3p8yi' and @placeholder='от 0,0']").send_keys(' ')
+        elem=driver.find_element_by_xpath("//ul[@class='suggest-suggests-bMAdj']").find_elements_by_xpath(".//*")
+        for li in elem:
+            if(li.get_attribute('data-marker')=='suggest(11)'):
+                li.click()
+                break
+        elem=driver.find_element_by_xpath("//input[@class='suggest-input-3p8yi' and @placeholder='до 500+']").send_keys(' ')
+        elem=driver.find_element_by_xpath("//ul[@class='suggest-suggests-bMAdj']").find_elements_by_xpath(".//*")
+        for li in elem:
+            if(li.get_attribute('data-marker')=='suggest(41)'):
+                li.click()
+                break
+       
+        driver.find_element_by_xpath("//span[@data-marker='params[696](8854-radio)/text']").click()
+        driver.find_element_by_xpath("//span[@data-marker='params[697](8856)/text']").click()
+      
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        driver.find_element_by_xpath("//input[@data-marker='params[1167](19984)/input']").click()
+        driver.find_element_by_xpath("//label[@data-marker='user(1)' and @tabindex='1']").click()
+        driver.find_element_by_xpath("//div[@data-marker='search-form/radius']").click()
+        elem=driver.find_element_by_xpath("//div[@data-marker='popup-location/radius-list']").find_elements_by_xpath(".//*")
+        for li in elem:
+            if(li.get_attribute('data-marker')=='popup-location/radius-item-100'):
+                li.click()
+                break
+        driver.find_element_by_xpath("//button[@data-marker='popup-location/save-button']").click()
+        print(driver.current_url)
+        self.url=driver.current_url
+
+   
 
     def check_html(self, file):
         line = file.find("Доступ с вашего IP-адреса временно ограничен")
         return line != 1
 
     def get_page(self, page: int = None):
-        params = {
-            'radius': 100,
-            'user': 1,
-            'pmax': 500000,
-            'pmin': 50000,
-            'f': 'ASgBAQECAkTyCrCKAZ4SoLgCAUDwChSsigEDRfgCGHsiZnJvbSI6ODk4LCJ0byI6NDA1MjQyfbwVGXsiZnJvbSI6MTU3ODYsInRvIjoxNTgzMX2~FRl7ImZyb20iOjE1NDgzLCJ0byI6MTU1MjR9'
-        }
+        r = urllib.parse.urlparse(self.url)
+        params = urllib.parse.parse_qs(r.query)
+        go=urllib.parse.urljoin('https://www.avito.ru',r.path)
         if page and page > 1:
             params['p'] = page
-
-        url = 'https://www.avito.ru/ufa/avtomobili/levyy_rul-ASgCAQICAUDwChSsigE'
         if len(self.proxy) != 0 and self.proxy_succeed == False:
             for p in self.proxy:
                 try:
                     print('ставлю прокси по %s' % p)
                     self.proxy_success = {'http': '%s' % p, 'https': '%s' % p}
                     r = self.session.get(
-                        url, params=params, proxies=self.proxy_success)
+                        go, params=params, proxies=self.proxy_success)
                     if self.check_html(r.text):
                         print("Прокси не работает. Retry")
                         continue
@@ -58,11 +117,11 @@ class AvitoParser:
                     print("proxy doesn't work. Retry"+str(e))
                     continue
         elif self.proxy_succeed == True:
-            r = self.session.get(url, params=params,
+            r = self.session.get(go, params=params,
                                  proxies=self.proxy_success)
             return r.text
         else:
-            r = self.session.get(url, params=params)
+            r = self.session.get(go, params=params)
             return r.text
 
     def get_pagination_limit(self):
@@ -94,7 +153,13 @@ class AvitoParser:
 
         # engine capacity block
         cap = item.select_one('div.specific-params.specific-params_block')
-        engcapacity = cap.string.strip().split(', ')[1]
+        s=cap.string.strip().split(', ')[1].split(' ')
+        engcapacity = s[0]
+        transmission=s[1]
+        power=s[2].replace('(', '')+" "+s[3].replace(')', '')
+
+        
+
         # Block with name and currency
         price_block = item.select_one(
             'span.snippet-price').get_text('\n').strip()
@@ -119,6 +184,8 @@ class AvitoParser:
             currency=currency,
             date=date,
             engcapacity=engcapacity,
+            transmission=transmission,
+            power=power
         )
 
     def get_blocks(self, page=1):
@@ -186,12 +253,13 @@ class AvitoParser:
         for i in range(1, limit+1):
             # self.get_blocks(page=i)
             self.get_blocks_to_csv(page=i)
-
+        
+       
 
 
 def main():
     proxy = []
-    with open("proxy.txt", "r") as myfile:
+    with open("proxy.txt", "a+") as myfile:
         try:
             data = myfile.readlines()
             for each in data:
@@ -199,8 +267,12 @@ def main():
         except:
             pass
     p = AvitoParser(proxy=proxy)
+    p.set_up(url='https://www.avito.ru/ufa')
     p.parse_all()
     print('Работа закончена!')
+    
+    #p.set_up('https://www.avito.ru')
+
 
 
 if __name__ == "__main__":
