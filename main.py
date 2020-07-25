@@ -1,4 +1,5 @@
 from avito import AvitoParser
+from auto_ru import AutoRuParser
 def main():
     proxy = []
     with open("proxy.txt", "a+") as myfile:
@@ -8,13 +9,17 @@ def main():
                 proxy.append(each.replace('\n', '').replace('\r', ''))
         except:
             pass
+    print('Avito!')
     p = AvitoParser(proxy=proxy)
     p.set_up(url='https://www.avito.ru/ufa')
     p.parse_all()
     print('Работа закончена!')
     
-    #p.set_up('https://www.avito.ru')
-
+    print('AutoRu!')
+    p = AutoRuParser(proxy=proxy)
+    p.set_up(url='https://auto.ru/ufa/cars/all/')
+    p.parse_all()
+    print('Работа закончена!')
 
 
 if __name__ == "__main__":

@@ -14,16 +14,6 @@ from selenium.webdriver.support import expected_conditions as EC
 
 class AvitoParser(Parser):
 
-    """def __init__(self, proxy=[]):
-        self.proxy = proxy
-        self.proxy_succeed = False
-        self.proxy_success = {}
-        self.session = requests.Session()
-        self.session.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36',
-            'Accept-Language': 'ru',
-        }
-        self.url=None"""
     
     def set_up(self, url):
         driver = webdriver.Chrome(ChromeDriverManager().install())
