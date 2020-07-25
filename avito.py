@@ -189,19 +189,6 @@ class AvitoParser(Parser):
                 block = self.parse_block(item=item)
                 print(block)
 
-    """def get_blocks_to_csv(self, page=1):
-        text = self.get_page(page=page)
-        soup = bs4.BeautifulSoup(text, 'lxml')
-
-        # CSS selector selection
-        container = soup.select(
-            'div.snippet-horizontal.item.item_table.clearfix.js-catalog-item-enum.item-with-contact.js-item-extended')
-        with open('avito.csv', 'a', encoding='utf8') as f:
-            writer = csv.writer(f)
-            for item in container:
-                block = self.parse_block(item=item)
-                writer.writerow((block))"""
-
     @staticmethod
     def parse_date(item):
         params = item.split(' ')
@@ -262,7 +249,6 @@ def main():
     p.parse_all()
     print('Работа закончена!')
     
-    #p.set_up('https://www.avito.ru')
 
 
 

@@ -28,9 +28,10 @@ class AutoRuParser(Parser):
             'x-page-request-id': '535f7d1e82f92fd2fad1b8e4f08c7aa2',
             'x-requested-with': 'fetch'
         }
-
     def set_up(self, url):
         self.url = url
+    
+    
 
     def check_html(self, file):
         line = file.find(
