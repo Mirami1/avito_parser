@@ -6,11 +6,11 @@ import urllib.parse
 import csv
 from datetime import timedelta, datetime
 import re
-class DromRuParser(Parser):
+from dateutil.relativedelta import relativedelta
+class YolaRuParser(Parser):
 
     def __init__(self, proxy=[]):
-        super(DromRuParser, self).__init__(proxy=proxy)
-        self.page=1
+        super(YolaRuParser, self).__init__(proxy=proxy)
         self.ready_url=None
     def check_html(self, file):
         line = file.find("Доступ с вашего IP-адреса временно ограничен")
@@ -21,24 +21,20 @@ class DromRuParser(Parser):
 
     def get_page(self, page: int = 1):
         params = {
-            'minyear': 2005,
-            'maxyear': 2019,
-            'minprice': 50000,
-            'maxprice': 500000,
-            'maxprobeg': 100000,
-            'damaged':'2',
-            'pts':'2',
-            'unsold':'1',
-            'isOwnerSells':'1',
-            'seller_group': 'PRIVATE',
-            'owners_count_group': 'LESS_THAN_TWO',
-            'steering_wheel': 'LEFT',
-            'distance': '100',
+            'yearMin': 2005,
+            'yearMax': 2019,
+            'priceMin': 50000,
+            'priceMax': 500000,
+            'mileageMax': 100000,
+            'carState':'notBroken',
+            'wheelTypes%5B0%5D':1,
+            'pts':3,
+            'sellers':1,
+            'page':1,
         }
         if page and page > 1:
-            self.page=page
+            params['page']=page
         
-        url=self.url+str(page)+'/'
         if len(self.proxy) != 0 and self.proxy_succeed == False:
             for p in self.proxy:
                 try:
@@ -56,56 +52,51 @@ class DromRuParser(Parser):
                     print("proxy doesn't work. Retry"+str(e))
                     continue
         elif self.proxy_succeed == True:
-            r = self.session.get(url, params=params,
+            r = self.session.get(self.url, params=params,
                                  proxies=self.proxy_success)
             return r.text
         else:
-            r = self.session.get(url, params=params)
+            r = self.session.get(self.url, params=params)
             if page==1:
                 self.ready_url=r.url
             return r.text
+        
+        
 
     def get_pagination_limit(self):
         text = self.get_page()
         soup = bs4.BeautifulSoup(text, 'lxml')
-        container = soup.select('a.css-grspv8.ena3a8q0')
-        last_button = container[-1]
-        href = last_button.get('href')
-        if not href:
-            return 1
-        r = urllib.parse.urlparse(href)
-        page=re.findall('\d+',r.path)
-        params = urllib.parse.parse_qs(r.query)
-        print(page[0])
-        return int(page[0])
+        container = soup.select_one('div.Paginator_total__oFW1n').get_text().split(' ')
+        page=int(container[1])
+        return page
 
     def parse_block(self, item):
         
-        url = item.get('href')
+        urlblock=item.select_one('a[data-target="serp-snippet-title"]')
+        url = urlblock.get('href')
 
         # Selecting block with Name
-        title_block = item.select_one('span[data-ftid=bull_title]')
-        title = title_block.string.strip()
+
+        title = urlblock.get('title').strip()
 
         # engine transmission power block
-        cap = item.select('span.css-xyj9u2.e162wx9x0')
-        s=cap[0].get_text().split(' ')
-        engcapacity = s[0]+s[1]
-        transmission=cap[2].get_text().replace(',','')
-        power=s[2].replace('(', '')+" "+s[3].replace('),', '')
+        transmission=item.select_one('div[data-target-id="serp-snippet-gear-type"]').get_text()
+        power=item.select_one('div[data-target-id="serp-snippet-engine-power"]').get_text()
+        engcapacity = item.select_one('div[data-target-id="serp-snippet-engine-vol-type"]').get_text().split(', ')[0].replace(',','')
+        
 
         
 
         # Block with price
         price= item.select_one(
-            'span[data-ftid=bull_price]').get_text('\n').strip()
+            'div[data-target="serp-snippet-price"]').get_text('\n').strip()
         currency='₽'
        
 
 
         # Datetime block
         date = None
-        date_block = item.select_one('div[data-ftid=bull_date]').get_text()
+        date_block = item.select_one('div[data-target="serp-snippet-actual-date"]').get_text()
         date = self.parse_date(item=date_block)
         return Block(
             url=url,
@@ -123,11 +114,9 @@ class DromRuParser(Parser):
         soup = bs4.BeautifulSoup(text, 'lxml')
 
         # CSS container selector selection
-        container=soup.select('div.css-10ib5jr.e93r9u20')
-        container = container[0].select(
-            'a.css-sew97f.erw2ohd2')
+        container=soup.select('article[data-target=serp-snippet]')
         if(file):
-             with open('drom_ru.csv', 'a', encoding='utf8') as f:
+             with open('yola_ru.csv', 'a', encoding='utf8') as f:
                 writer = csv.writer(f)
                 for item in container:
                     block = self.parse_block(item=item)
@@ -139,42 +128,39 @@ class DromRuParser(Parser):
 
     @staticmethod
     def parse_date(item):
+        if 'минут назад' in item or 'минуты назад' in item or 'минуту назад' in item:
+            params = item.split(' ')
+            minuts=int(params[1])
+            today = datetime.now()-timedelta(minutes=minuts)
+            return today.strftime("%Y-%m-%d %I:%M")
+        if 'день назад' in item:
+            today = datetime.now()-timedelta(days=1)
+            return today.strftime("%Y-%m-%d")
+        if 'дня назад' in item or 'дней назад' in item:
+            params = item.split(' ')
+            day=int(params[1])
+            today = datetime.now()-timedelta(days=day)
+            return today.strftime("%Y-%m-%d")
+        if 'час назад' in item:
+            today = datetime.now()-timedelta(hours=1)
+            return today.strftime("%Y-%m-%d %I:%M")
         if 'часа назад' in item or 'часов назад' in item:
             params = item.split(' ')
-            hour=int(params[0])
+            hour=int(params[1])
             today = datetime.now()-timedelta(hours=hour)
             return today.strftime("%Y-%m-%d %I:%M")
-        elif 'сегодня' or 'час назад' in item:
-            today=datetime.now()
+        if 'месяц назад' in item:
+            today = datetime.now()-relativedelta(months=1)
+            return today.strftime("%Y-%m-%d")
+        elif 'месяца назад' or 'месяцев назад' in item:
+            params = item.split(' ')
+            month=int(params[1])
+            today=datetime.now()-relativedelta(months=month)
             return today.strftime("%Y-%m-%d")          
-        params = item.split(' ')
-        if len(params) == 2:
-            day, month_ru = params
-            day = int(day)
-            months_map = {
-                'января': 1,
-                'февраля': 2,
-                'марта': 3,
-                'апреля': 4,
-                'мая': 5,
-                'июня': 6,
-                'июля': 7,
-                'августа': 8,
-                'сентября': 9,
-                'октября': 10,
-                'ноября': 11,
-                'декабря': 12,
-            }
-            month = months_map.get(month_ru)
-            if not month:
-                print("Не можем определить месяц: ", item)
-                return
-            return datetime(day=day, month=month,year=datetime.now().year).strftime("%Y-%m-%d")  
         else:
             print("Не могу разобрать формат: ", item)
             return
 
-        print('sss')
 
     def parse_all(self):
         limit = self.get_pagination_limit()
@@ -198,8 +184,8 @@ def main():
                 proxy.append(each.replace('\n', '').replace('\r', ''))
         except:
             pass
-    p = DromRuParser(proxy=proxy)
-    p.set_up(url='https://ufa.drom.ru/auto/all/page')
+    p = YolaRuParser(proxy=proxy)
+    p.set_up(url='https://auto.youla.ru/ufa/cars/used/')
     p.parse_all()
     print('Работа закончена!')
     

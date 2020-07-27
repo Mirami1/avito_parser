@@ -42,12 +42,6 @@ class AvitoParser(Parser):
             if(li.get_attribute('data-marker')=='suggest(1)'):
                 li.click()
                 break
-        elem=driver.find_element_by_xpath("//input[@class='suggest-input-3p8yi' and @placeholder='от 0,0']").send_keys(' ')
-        elem=driver.find_element_by_xpath("//ul[@class='suggest-suggests-bMAdj']").find_elements_by_xpath(".//*")
-        for li in elem:
-            if(li.get_attribute('data-marker')=='suggest(11)'):
-                li.click()
-                break
         elem=driver.find_element_by_xpath("//input[@class='suggest-input-3p8yi' and @placeholder='до 500+']").send_keys(' ')
         elem=driver.find_element_by_xpath("//ul[@class='suggest-suggests-bMAdj']").find_elements_by_xpath(".//*")
         for li in elem:
@@ -133,16 +127,24 @@ class AvitoParser(Parser):
         # Selecting block with Name
         title_block = item.select_one('h3.snippet-title span')
         title = title_block.string.strip()
-
         # engine capacity block
-        cap = item.select_one('div.specific-params.specific-params_block')
-        s=cap.string.strip().split(', ')[1].split(' ')
-        engcapacity = s[0]
-        transmission=s[1]
-        power=s[2].replace('(', '')+" "+s[3].replace(')', '')
-
+        try:
+            cap = item.select_one('div.specific-params.specific-params_block')
+            s=cap.string.strip().split(', ')[1].split(' ')
+            engcapacity = s[0]
+            transmission=s[1]
+            power=s[2].replace('(', '')+" "+s[3].replace(')', '')
+        except Exception as ex:
+            print("Описание движка не дописано в данном объявлении",url)
+            if len(s)!=0:
+                transmission=s[0]
+                power='Неясно'
+                engcapacity='Неясно'
+            else:
+                power='Неясно'
+                engcapacity='Неясно'
+                power='Неясно'
         
-
         # Block with name and currency
         price_block = item.select_one(
             'span.snippet-price').get_text('\n').strip()

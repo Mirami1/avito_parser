@@ -1,6 +1,7 @@
 from avito import AvitoParser
 from auto_ru import AutoRuParser
 from drom_ru import DromRuParser
+from yola import YolaRuParser
 def main():
     proxy = []
     with open("proxy.txt", "a+") as myfile:
@@ -25,6 +26,12 @@ def main():
     print('DromRu!')
     p = DromRuParser(proxy=proxy)
     p.set_up(url='https://ufa.drom.ru/auto/all/page')
+    p.parse_all()
+    print('Работа закончена!')
+
+    print('YolaRu!')
+    p = YolaRuParser(proxy=proxy)
+    p.set_up(url='https://auto.youla.ru/ufa/cars/used/')
     p.parse_all()
     print('Работа закончена!')
 

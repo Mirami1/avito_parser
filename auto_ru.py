@@ -45,7 +45,6 @@ class AutoRuParser(Parser):
             'price_from': 50000,
             'price_to': 500000,
             'km_age_to': 100000,
-            'displacement_from': 1600,
             'seller_group': 'PRIVATE',
             'owners_count_group': 'LESS_THAN_TWO',
             'steering_wheel': 'LEFT',
