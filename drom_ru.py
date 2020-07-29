@@ -13,8 +13,8 @@ class DromRuParser(Parser):
         self.page=1
         self.ready_url=None
     def check_html(self, file):
-        line = file.find("Доступ с вашего IP-адреса временно ограничен")
-        return line != 1
+        line = file.find("Запрошенная вами страница не существует!")
+        return line != -1
 
     def set_up(self, url):
         self.url = url
@@ -191,7 +191,7 @@ class DromRuParser(Parser):
 
 def main():
     proxy = []
-    with open("proxy.txt", "a+") as myfile:
+    with open("proxy.txt", "r") as myfile:
         try:
             data = myfile.readlines()
             for each in data:

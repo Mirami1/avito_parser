@@ -69,7 +69,7 @@ class AvitoParser(Parser):
 
     def check_html(self, file):
         line = file.find("Доступ с вашего IP-адреса временно ограничен")
-        return line != 1
+        return line != -1
 
     def get_page(self, page: int = None):
         r = urllib.parse.urlparse(self.url)

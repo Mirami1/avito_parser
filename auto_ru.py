@@ -35,8 +35,8 @@ class AutoRuParser(Parser):
 
     def check_html(self, file):
         line = file.find(
-            "Нам очень жаль, но запросы, поступившие с вашего IP-адреса, похожи на автоматические. По этой причине мы вынуждены временно заблокировать доступ к сайту.")
-        return line != 1
+            "Продолжая использование данного сайта, я соглашаюсь с тем, что обработка моих данных будет осуществляться в соответствии с законодательством Российской Федерации.")
+        return line != -1
 
     def get_page(self, page: int = None):
         params = {
@@ -162,7 +162,7 @@ class AutoRuParser(Parser):
 
 def main():
     proxy = []
-    with open("proxy.txt", "a+") as myfile:
+    with open("proxy.txt", "r") as myfile:
         try:
             data = myfile.readlines()
             for each in data:
